@@ -1,0 +1,117 @@
+#!/bin/bash
+
+# CEM - Cluster Elasticity Manager 
+# Copyright (C) 2011 - GRyCAP - Universitat Politecnica de Valencia
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+### BEGIN INIT INFO
+# Provides: nomad
+# Required-Start:    $local_fs $remote_fs
+# Required-Stop:     $local_fs $remote_fs
+# Default-Start: 2 3 4 6
+# Default-Stop: 0 1 5
+# Short-Description: CEM - Cluster Elasticity Manager 
+# Description: 
+### END INIT INFO
+
+PID_FILE=/var/run/cem.pid
+DAEMON=/usr/bin/cem-service.py
+LOG_PATH=/var/log/cem
+SERVICE_NAME="Cluster Elasticity Manager"
+
+do_start()
+{
+    if [ -f ${PID_FILE} ]; then
+        pid=$(cat ${PID_FILE})
+        alive=`ps ${pid} | grep ${pid} | wc -l`
+        if [ ${alive} -eq 1 ]; then
+            echo "${SERVICE_NAME} is already running"
+            return
+        else
+            rm ${PID_FILE}
+            do_start
+            return 0
+        fi
+    else
+        ${DAEMON} > ${LOG_PATH}/cem.out 2> ${LOG_PATH}/cem.err &  
+        pid=$!
+        echo ${pid} > ${PID_FILE}
+        sleep 1
+        alive=`ps ${pid} | grep ${pid} | wc -l`
+        if [ ${alive} -eq 1 ]; then
+            echo "${SERVICE_NAME} started successfully"
+            return 1
+        else    
+            echo "${SERVICE_NAME} not started"
+            return 0
+        fi
+    fi
+} 
+
+
+do_stop () {
+    
+    if [ -f ${PID_FILE} ]; then
+        pid=$(cat ${PID_FILE})
+        kill -s SIGINT ${pid}
+        sleep 2
+        alive=`ps ${pid} | grep ${pid} | wc -l`
+        if ! [ ${alive} -eq 1 ]; then
+            rm ${PID_FILE}
+            echo  "${SERVICE_NAME} stopped successfully"
+            return
+        fi
+        echo "${SERVICE_NAME} not stopped"
+    else
+        echo "${PID_FILE} not found"
+    fi    
+    return 0
+}
+
+do_status ()
+{
+    if [ -f ${PID_FILE} ]; then
+        pid=$(cat ${PID_FILE})
+        alive=`ps ${pid} | grep ${pid} | wc -l`
+        if [ ${alive} -eq 1 ]; then
+            echo "$SERVICE_NAME is running"
+            return
+        fi
+    fi 
+    echo "$SERVICE_NAME is not running"
+    
+}
+
+case "$1" in
+  start)
+    do_start
+	;; 
+  restart|reload|force-reload)
+    do_stop
+    do_start
+	;;
+  stop)
+    do_stop 
+	;;
+  status)
+    do_status
+  ;;
+  *)
+	echo "Usage: $0 start|stop|restart|status" >&2
+	exit 1
+	;;
+esac
+
+exit 0
