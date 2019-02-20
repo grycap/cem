@@ -44,7 +44,7 @@ class REST():
         while ( (self.MAX_RETRIES>retries_cont) and (not ok) ):
             retries_cont += 1
             try: 
-                response = requests.request(method, url, verify=False, headers=myheaders, data=body, timeout=30)
+                response = requests.request(method, url, verify=False, headers=myheaders, data=body, timeout=600)
                 ok=True
             except requests.exceptions.ConnectionError as ex:
                 self.LOG.warning(ex) 
