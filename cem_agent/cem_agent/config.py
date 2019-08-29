@@ -41,10 +41,12 @@ def parse_options(config, section_name, config_class):
 class Config:
     # General parameters
     CEM_PATH = '/etc/cem-agent'
-    CEM_API_REST_HOST = '0.0.0.0'
-    CEM_API_REST_PORT = '9988'
+    CEM_SERVER_IP = '0.0.0.0'
+    CEM_SERVER_PORT = '9988'
     REST_API_SECRET = '6f0b387e-865c-4ac3-9ae1-6170b5fbcd79'
+    MONITORING_PERIOD = 30
     
+    ALLOWED_PLUGINS = ['check_commands']
     # Logging parameters
     LOG_CONF_FILE = CEM_PATH + '/logging.cfg'
     LOG_LEVEL = 'WARNING'

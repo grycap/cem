@@ -6,6 +6,7 @@ RUN apt-get update && apt-get install --no-install-recommends apache2 -y && dock
 COPY ./src/ /var/www/html/
 RUN mkdir /var/www/www-data && chown www-data /var/www/
 COPY ./docker-entrypoint.sh /
+RUN chmod u+x /docker-entrypoint.sh
 
 EXPOSE 80
 WORKDIR /var/www/html

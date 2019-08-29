@@ -49,5 +49,5 @@ setup(name='cem',
         ])
     ],
     scripts=['cem-service.py', 'service/cem'],
-    install_requires = [ "bottle", "requests" , "cherrypy", "enum"]
+    install_requires = [ "bottle", "requests" , "cherrypy", "enum34"]
 )

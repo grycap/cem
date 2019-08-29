@@ -30,12 +30,14 @@ import cem_server.REST_Server as REST_Server
 from cem_server.config import Config
 from cem_server.cem import ClusterElasticityManager 
 from cem_server import __version__ as cem_version
+from cem_server.db import DataBase 
 
 LOGGER = logging.getLogger('CEM')
 CEM = None
 REST_SERVER = None
 CONFIG = Config()
 REQUEST_QUEUE = Queue.Queue()
+DB = DataBase(CONFIG.DB)
 
 class ExtraInfoFilter(logging.Filter):
     """
@@ -125,16 +127,16 @@ def config_logger():
         #sys.exit('Cannot read the logging configuration in '+ Config.LOG_CONF_FILE)
 
 def start_daemon():
-    global CEM, REQUEST_QUEUE
+    global CEM, REQUEST_QUEUE, DB
     LOGGER.info( '------------- Starting Cluster Elasticity Manager %s -------------' % cem_version)
 
-    CEM = ClusterElasticityManager( CONFIG, REQUEST_QUEUE )
+    CEM = ClusterElasticityManager( CONFIG, REQUEST_QUEUE, DB )
     
     if not CEM.check_db():
         print('Error connecting with the DB!!.')
         sys.exit(2)
 
-    REST_Server.run_in_thread(host=CONFIG.CEM_API_REST_HOST, port=CONFIG.CEM_API_REST_PORT, request_queue=REQUEST_QUEUE)
+    REST_Server.run_in_thread(host=CONFIG.CEM_API_REST_HOST, port=CONFIG.CEM_API_REST_PORT, request_queue=REQUEST_QUEUE, db=DB, rest_api_secret=CONFIG.REST_API_SECRET, cem=CEM)
     
     CEM.run_in_thread()
 

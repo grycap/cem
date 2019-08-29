@@ -20,11 +20,11 @@
 
 //$im_use_rest=false;
 //$im_port=8899;
-$db="";
+$db="/var/www/www-data/cem.db";
 $db_users_table="users";
 $db_allocation_table="allocations";
 $db_resources_table="resources";
-$cem_host="";
+$cem_host="XXX";
 $cem_port="10000";
 
 $DEFAULT_DB_vmID="-1";

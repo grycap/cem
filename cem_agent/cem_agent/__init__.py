@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-__all__ = ['config', 'cem_agent']
-__version__ = '0.0.1'
+__all__ = ['config', 'Plugin', 'REST', 'utils', 'cem_server_api', 'RepeatedTimer']
+__version__ = '0.0.2'
 __author__ = 'Sergio Lopez'
 

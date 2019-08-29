@@ -99,14 +99,17 @@ class ClusterElasticityManager():
     monitoring_loop = False
     manager_loop = False
 
-    def __init__(self, config, request_queue):
+    def __init__(self, config, request_queue, _db):
         self.__Config = config
-        self._db = DataBase(self.__Config.DB)
+        self._db = _db
         self.request_queue = request_queue
         self.threads = []
         self.__im_rest = IMRestAPI(self.__Config.IM_INFRASTRUCTURE_ID, self.__Config.IM_REST_ENDPOINT, self.__Config.IM_CREDENTIALS)
         self.__iprtest = IptRest(host=self.__Config.IPTREST_HOST, port=self.__Config.IPTREST_PORT)
+        self.plugins_configuration = {'check_commands': { 'target_commands': ['/opt/Xilinx/Vivado/2018.2/bin/vivado', 'vivado'] }}
 
+    def get_active_plugins(self):
+        return ['check_commands']
 
     def check_db(self):
         if self._db.connect():
@@ -207,7 +210,7 @@ class ClusterElasticityManager():
                 for tuple_res in aux:
                     free_resources += tuple_res[0] * (self.__Config.CEM_MAX_SLOTS_NODE - tuple_res[1])
         
-            aux = DB.select('vmID', 'resources', where= 'utilization_state == '+ str(ResourceUtilizationState.IDLE.value) +' AND state == '+str(ResourceState.CONFIGURED .value) )
+            aux = DB.select('vmID', 'resources', where= 'utilization_state == '+ str(ResourceUtilizationState.IDLE.value) +' AND state == '+str(ResourceState.CONFIGURED.value) )
             if aux:
                 for resource in aux:
                     free_resources += resource[0] * self.__Config.CEM_MAX_SLOTS_NODE  
@@ -470,7 +473,7 @@ class ClusterElasticityManager():
                     result = True
             __DB.close()
         return result
-    
+
     ''' ---------------------------------- MAIN THREAD ---------------------------------- '''
     '''
         Loop that processes the requests obtained from REQUEST_QUEUE
@@ -483,8 +486,12 @@ class ClusterElasticityManager():
             if not self.request_queue.empty():
                 r = self.request_queue.get( block=True, timeout=1)
                 self.LOG.debug('Request obtained from queue')
+                # Requests by CEM AGENT
+                if r.request_type == 'agent_monitoring':
+                    self.LOG.debug('agent_monitoring: '+str(r))
+                    self.__process_agent_monitoring(r)
                 # Requests by USERS
-                if r.request_type == 'demand_resources':
+                elif r.request_type == 'demand_resources':
                     self.LOG.debug('demand_resources: '+str(r))
                     self.__process_demand_resources(r)
                 # Requests by PRIVILEGED_USER (that call to update_resource_assignation and im_requests)
@@ -504,9 +511,9 @@ class ClusterElasticityManager():
                     self.LOG.debug('remove_assignation: '+str(r))
                     self.__process_remove_assignation(r)
                 # Requests by MONITORING_THREAD
-                elif r.request_type == 'monitoring_info':
-                    self.LOG.debug('monitoring_info: '+str(r))
-                    self.__process_monitoring_info(r)
+                elif r.request_type == 'server_monitoring':
+                    self.LOG.debug('server_monitoring: '+str(r))
+                    self.__process_server_monitoring(r)
                 elif r.request_type == 'iptrest_info':
                     self.LOG.debug('iptrest_info: '+str(r))
                     self.__process_iptrest_info(r)
@@ -552,19 +559,81 @@ class ClusterElasticityManager():
         
         self.LOG.debug('End of __demand_resources ')
         return True
-  
+    '''
+        Use the monitoring information sent by the CEM AGENT in a node 
+            - Update the users state 
+    '''
+    def __process_agent_monitoring(self, request):
+        r = request['resource']
+        vmID = r.vmID
+        agent_data = request['data']
+        timestamp = request['timestamp']
+        
+        r.new_monitoring_info(timestamp, agent_data )
+        # Store the agent monitoring info in the DB
+        if self._db.connect():
+            if not self._db.update(table='resources', set_tuple_list=r.transform_to_tuple_DB_SET(), where='vmID=="'+vmID+'"'):
+                self.LOG.error('Cannot update the monitoring information of node ' + vmID)
+                res = False
+            self._db.close()
+        
+        users_assigned_to_node = self.get_users_assigned_to_node(vmID, self._db) 
+        # Check if users are executing_cmd_commands
+        for username in users_assigned_to_node:
+            # Obtain the old state
+            db_data_user = None
+            if self._db.connect():
+                aux = self._db.select('state', 'users', where='name=="'+username+'"'  )
+                if aux:
+                    db_data_user = UserState(aux[0][0])
+                self._db.close()
+
+            old_state = UserState.UNKNOWN
+            if db_data_user:
+                old_state = db_data_user
+
+            new_state = old_state
+            self.LOG.debug('old_state: %s' % ( old_state.name ) ) 
+
+            # Use the agent monitoring information to update the user state
+            plugins_result = None
+            for plugin_name in self.get_active_plugins():
+                p = eval(plugin_name)(plugin_name, self.plugins_configuration[plugin_name])
+                # OR between all activated plugin results
+                plugins_result = plugins_result or p.check_utilization(agent_data[plugin_name][username])
+
+            if plugins_result:
+                new_state = UserState.ACTIVE
+            else:
+                new_state = UserState.RESOURCES_ASSIGNED
+
+            self.LOG.debug('new_state: %s' % ( new_state.name ) ) 
+
+            if new_state != old_state:
+                self.LOG.debug('new_state: '+new_state.name + ', old_state: '+old_state.name)
+                # Store the new user state to DB
+                if self._db.connect():
+                    if not self._db.update(table='users', set_tuple_list=[('state', new_state.value), ('timestamp_update_state', int(r.timestamp_agent_connection))], where='name=="'+username+'"'): 
+                        self.LOG.error('Cannot update the state of user '+username)
+                        res = False
+                    else:
+                        self.LOG.debug('New state of user '+username+' is '+new_state.name)
+                    self._db.close()    
+
     '''
         Use the monitoring information obtained by MONITORING_THREAD for:
         - Computing the utilization_state for each node 
         - Check if users are using the node 
         - Update DB
+        - Update (if required) the RDP url
+
         
     '''
-    def __process_monitoring_info(self, request):
+    def __process_server_monitoring(self, request):
         res = True
         for vmID, resource_tuple in request.data.items():
             r= Resource(resource_tuple)
-            if r.is_configured() and r.assigned_rdp_url == 'default_rdp_url':
+            if self.__Config.IPTREST_ENABLED and r.is_configured() and r.assigned_rdp_url == 'default_rdp_url':
                 r.set_assigned_rdp_url( self.__obtain_rdp_url(r.ip, self.__Config.RDP_DEST_PORT, self._db ) )
                 self.LOG.info('The RDP URL for node '+vmID +' is '+r.assigned_rdp_url)
             
@@ -588,43 +657,7 @@ class ClusterElasticityManager():
                 self._db.close()
 
             self.LOG.debug('vmID=%s --> users_assigned_to_node: %s' %(vmID, str(users_assigned_to_node) ) )
-            # Check if users are executing_cmd_commands
-            for username in users_assigned_to_node:
-                db_data_user = None
-                if self._db.connect():
-                    aux = self._db.select('state', 'users', where='name=="'+username+'"'  )
-                    if aux:
-                        db_data_user = UserState(aux[0][0])
-                    self._db.close()
-                old_state = UserState.UNKNOWN
-                if db_data_user:
-                    old_state = db_data_user
-                new_state = old_state
-                self.LOG.debug('old_state: %s' % ( old_state.name ) ) 
-
-                if username in r.cem_agent_data:
-                    info = r.cem_agent_data[username]
-                    self.LOG.debug('info (r.cem_agent_data[username]): %s' % ( json.dumps(info) ) ) 
-
-                    if bool(info['executing_target_cmd']) == True:
-                        new_state = UserState.ACTIVE
-                    else:
-                        new_state = UserState.RESOURCES_ASSIGNED
-                else:
-                    self.LOG.debug('username: %s not in cem_data %s' % ( username, str(r.cem_agent_data) ) )   
-
-                self.LOG.debug('new_state: %s' % ( new_state.name ) ) 
-
-                if new_state != old_state:
-                    self.LOG.debug('new_state: '+new_state.name + ', old_state: '+old_state.name)
-                    # Store the new user state to DB
-                    if self._db.connect():
-                        if not self._db.update(table='users', set_tuple_list=[('state', new_state.value), ('timestamp_update_state', int(r.timestamp_agent_connection))], where='name=="'+username+'"'): 
-                            self.LOG.error('Cannot update the state of user '+username)
-                            res = False
-                        else:
-                            self.LOG.debug('New state of user '+username+' is '+new_state.name)
-                        self._db.close()    
+            
 
         return res
 
@@ -712,8 +745,9 @@ class ClusterElasticityManager():
             
             # Update DB
             for vmID in removed_vms:
-                if not self.__delete_rdp_url(vmID, self._db):
-                    self.LOG.error (__by + ' cannot remove rdp_url for resource %s' % ( vmID ))
+                if self.__Config.IPTREST_ENABLED:
+                    if not self.__delete_rdp_url(vmID, self._db):
+                        self.LOG.error (__by + ' cannot remove rdp_url for resource %s' % ( vmID ))
                 if not self.remove_resource_db(vmID):
                     self.LOG.error (__by + ' cannot remove resource %s from the Resources table' % ( vmID ))
                 
@@ -871,7 +905,7 @@ class ClusterElasticityManager():
                     vmID = __resource.vmID
                     
                     # IPTRest INFO
-                    if __resource.assigned_rdp_url != 'default_rdp_url':
+                    if self.__Config.IPTREST_ENABLED and __resource.assigned_rdp_url != 'default_rdp_url':
                         iptrest_info.append ( { 'source_port':  __resource.assigned_rdp_url.split(':')[1], 'dest_port': self.__Config.RDP_DEST_PORT, 'dest_ip': __resource.ip } )
 
                     if vmID in im_states['state']['vm_states']:
@@ -893,45 +927,14 @@ class ClusterElasticityManager():
                                         __resource.set_nodename(new_name, vmID)
                                         self.LOG.info('New name for resource ' + vmID+': ' +new_name ) 
                     
-                        agent_data = {}
-                        current_time = time.time()
-                       
-
-                        # Prepare data for send it to CEM - AGENTS
-                        users_assigned_to_node = self.get_users_assigned_to_node(vmID, __DB) 
-                        to_agent_data = { 'assigned_users': users_assigned_to_node, 'users_list': users_list, 'kill_all': [] }
-                        for user in users_list:
-                            if user not in users_assigned_to_node:
-                                to_agent_data['kill_all'].append(user)
-
-                        # Check information about cem_mon of the node
-                        if __resource.is_alive():
-                            self.LOG.info('Resource ' + vmID+' is alive: ' + __resource.state.name + ' and ' + __resource.utilization_state.name) 
-                            CEM_A = CEM_Agent_client (self.LOG, auth_token=self.__Config.REST_AGENT_API_SECRET)                        
-                            aux = CEM_A.post_status(__resource.ip, self.__Config.CEM_AGENT_PORT, json.dumps(to_agent_data))
-                            if aux:
-                                data = json.loads(aux.text)
-                                self.LOG.debug('CEM_A.post_status for node ' + vmID+': ' +str(data) ) 
-                                current_time = data['timestamp']
-                                agent_data = data['state']
-                                
-                                # Due to the CEM-Agent response,  the contextualization was completed at least one time in the past. So, the Resource State is set to Configured
-                                __resource.set_state(ResourceState.CONFIGURED)
-                            else:
-                                self.LOG.error('CEM_A.post_status for node ' + vmID+': ' +str(aux) ) 
-                        else:
-                            self.LOG.info('Resource ' + vmID+' is not alive: ' + __resource.state.name ) 
-
-                        __resource.new_monitoring_info(current_time, agent_data )
-                        self.LOG.debug('Node ' + vmID + ' at ' + str(current_time) + ' --> agent_data = ' + json.dumps(agent_data ) )
-                        
                     else:
                         self.LOG.warning( 'Node ' + vmID + ' not exists for IM')
 
                     all_nodes[ vmID ] = __resource.to_tuple()
 
-                self.request_queue.put(item=Request(request_type='iptrest_info', data={ 'redirections': iptrest_info }, auth={} ) , block=True, timeout=None)
-                self.request_queue.put(item=Request(request_type='monitoring_info', data=all_nodes, auth={} ), block=True, timeout=None)
+                if self.__Config.IPTREST_ENABLED:
+                    self.request_queue.put(item=Request(request_type='iptrest_info', data={ 'redirections': iptrest_info }, auth={} ) , block=True, timeout=None)
+                self.request_queue.put(item=Request(request_type='server_monitoring', data=all_nodes, auth={} ), block=True, timeout=None)
 
             self.LOG.info (' -- Monitoring loop iteration complete -- ')
             if not self.__mysleep (self.__Config.CEM_MONITORING_PERIOD, 'monitoring'):

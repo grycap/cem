@@ -13,14 +13,18 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-[cem-agent]
-REST_API_SECRET = XXXXXXXX
-CEM_SERVER_IP = {CEM_SERVER_IP}
-CEM_SERVER_PORT = 10000
-MONITORING_PERIOD = 30
 
-[log]
-LOG_CONF_FILE = /etc/cem-agent/logging.cfg
-LOG_LEVEL = DEBUG
-LOG_FILE = /var/log/cem-agent/cem-agent.log
-LOG_FILE_MAX_SIZE = 10485760
+import logging
+
+class Plugin:
+
+    def __init__(self, LOG, _name, plugin_configuration):
+        self.name = _name
+        self.LOG = LOG
+        self.plugin_configuration = plugin_configuration
+    
+    def do_monitoring (self, users_list, assigned_users):
+        print('Plugin - dummy do_monitoring - returns empty json')
+        return {}
+
+    

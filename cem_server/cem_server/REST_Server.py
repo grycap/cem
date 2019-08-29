@@ -20,13 +20,16 @@ import logging
 import json
 
 from Request import Request
+from db import DataBase 
+from Resource import Resource, ResourceState, ResourceUtilizationState
 
 LOG = logging.getLogger('RESTServer')
 app = bottle.Bottle()
 bottle_server = None
 REQUEST_QUEUE = None
-
-
+DB = None
+REST_API_SECRET = None
+CEM = None
 class RESTServer(bottle.ServerAdapter):
 
     def run(self, handler):
@@ -47,9 +50,12 @@ class RESTServer(bottle.ServerAdapter):
     def shutdown(self):
         self.srv.stop()
 
-def run(host, port, request_queue):
-    global bottle_server,LOG, REQUEST_QUEUE
+def run(host, port, request_queue, db, rest_api_secret, cem):
+    global bottle_server,LOG, REQUEST_QUEUE, DB, REST_API_SECRET, CEM
+    CEM = cem
     REQUEST_QUEUE = request_queue
+    DB = db
+    REST_API_SECRET = rest_api_secret
     bottle_server = RESTServer(host=host, port=port)
     bottle.run(app, server=bottle_server, quiet=True)
 
@@ -57,14 +63,27 @@ def stop():
     if bottle_server:
         bottle_server.shutdown()
 
-def run_in_thread(host, port, request_queue):
-    bottle_thr = threading.Thread(target=run, args=(host, port,request_queue))
+def run_in_thread(host, port, request_queue, db, rest_api_secret, cem):
+    bottle_thr = threading.Thread(target=run, args=(host, port,request_queue, db, rest_api_secret, cem))
     bottle_thr.daemon = True
     bottle_thr.start()
     return bottle_thr
     
 def check_auth (token):
-    return True #token == CONFIG.REST_API_SECRET
+    return token == REST_API_SECRET
+
+''' Returns None or the Resource object ''' 
+def check_client_ip (client_ip):
+    resources = {}
+    if DB.connect():
+        aux = DB.select('vmID, ip, nodename, assigned_rdp_url, timestamp_agent_connection, timestamp_update_state, state, utilization_state, cem_agent_data, timestamp_update_utilization_state', 'resources') 
+        if aux:
+            for tuple_data in aux:
+                r = Resource(tuple_data)
+                resources[r.ip] = r
+    if client_ip in resources:
+        return resources[client_ip]
+    return None
 
 def get_media_type(header):
     """
@@ -253,3 +272,91 @@ def remove_assignation():
     bottle.response.content_type = "text/plain"
     bottle.response.status = 200
     return "Added to queue: "+ str(r)
+
+# Request by CEM Agent
+@app.route('/cem_agent/register', method='GET')
+def cem_agent_register():
+    global REQUEST_QUEUE
+    LOG.debug("Received /cem_agent/register")
+
+    if 'Authorization' in bottle.request.headers:
+        token = bottle.request.headers['Authorization']
+
+    bottle.response.content_type = "application/json"
+    bottle.response.status = 403
+    result = {}
+    resource = check_client_ip(bottle.request.environ.get('HTTP_X_FORWARDED_FOR') or bottle.request.environ.get('REMOTE_ADDR'))
+    if check_auth(token):
+        # Check if it is an IP from our clients
+        bottle.response.status = 200
+        if resource:
+            result['vmID'] = resource.vmID
+    return json.dumps(result)
+
+@app.route('/cem_agent/deregister', method='GET')
+def cem_agent_deregister():
+    global REQUEST_QUEUE
+    LOG.debug("Received /cem_agent/deregister")
+
+    if 'Authorization' in bottle.request.headers:
+        token = bottle.request.headers['Authorization']
+
+    bottle.response.content_type = "plain/text"
+    bottle.response.status = 403
+    result = {}
+    resource = check_client_ip(bottle.request.environ.get('HTTP_X_FORWARDED_FOR') or bottle.request.environ.get('REMOTE_ADDR'))
+    if check_auth(token):
+        # Check if it is an IP from our clients
+        bottle.response.status = 200
+    return ""
+
+@app.route('/cem_agent/monitoring/<vmID>', method='POST')
+def cem_agent_monitoring(vmID):
+    global REQUEST_QUEUE
+    LOG.debug("Received /cem_agent/monitoring/<vmID>")
+    content_type = get_media_type('Content-Type')
+    LOG.debug("content_type_: "+str(content_type))
+    r = None
+
+    if 'Authorization' in bottle.request.headers:
+        token = bottle.request.headers['Authorization']
+
+    if content_type:
+        if 'application/json' in content_type:
+            read_data = str(bottle.request.body.read() )
+            #LOG.debug("read: "+ read_data)
+            try:
+                read_json = json.loads( read_data )
+                r_data = read_json['data']
+                timestamp = read_json['timestamp']
+                resource = check_client_ip(bottle.request.environ.get('HTTP_X_FORWARDED_FOR') or bottle.request.environ.get('REMOTE_ADDR'))
+                r = Request(request_type='agent_monitoring', data={ 'data': r_data, 'resource': resource, 'timestamp': timestamp }, auth={} )
+            except:
+                LOG.error("Cannot read the body of the request")
+    
+    bottle.response.content_type = "application/json"
+    bottle.response.status = 403
+    # Check token
+    if check_auth(token) and (vmID == resource.vmID):
+        REQUEST_QUEUE.put(item=r, block=True, timeout=None)
+        bottle.response.content_type = "text/plain"
+        bottle.response.status = 200
+        return "Added to queue: "+ str(r)
+
+@app.route('/cem_agent/monitoring/<vmID>', method='GET')
+def cem_agent_plugin_info(vmID):
+    global CEM, DB
+    
+    if 'Authorization' in bottle.request.headers:
+        token = bottle.request.headers['Authorization']
+
+    bottle.response.content_type = "application/json"
+    bottle.response.status = 403
+    result = {}
+    resource = check_client_ip(bottle.request.environ.get('HTTP_X_FORWARDED_FOR') or bottle.request.environ.get('REMOTE_ADDR'))
+    if check_auth(token):
+        # Check if it is an IP from our clients
+        bottle.response.status = 200
+        result = { 'plugins': CEM.plugins_configuration, 'users_list': CEM.get_all_users(DB) , 'assigned_users': CEM.get_users_assigned_to_node(vmID, DB) }
+
+    return json.dumps(result)

@@ -24,14 +24,19 @@ import sys
 import threading
 import signal
 import time
+import json
 
-import cem_agent.cem_agent as REST_Server
 from cem_agent.config import Config
 from cem_agent import __version__ as cem_version
+from cem_agent.cem_server_api import cem_server_api
+from cem_agent.RepeatedTimer import RepeatedTimer
+from cem_agent.plugins.check_commands import check_commands
 
 LOGGER = logging.getLogger('CEM-agent')
-REST_SERVER = None
 CONFIG = Config()
+CEM_MAIN_LOOP = None
+vmID = None
+CEM_SERVER_REST_API = None
 
 class ExtraInfoFilter(logging.Filter):
     """
@@ -78,6 +83,11 @@ def config_logger():
         log.propagate = 0
         log.addHandler(fileh)
 
+        log = logging.getLogger('Plugin')
+        log.setLevel(log_level)
+        log.propagate = 0
+        log.addHandler(fileh)
+
     # Add the filter to add extra fields
     try:
         filt = ExtraInfoFilter()
@@ -88,29 +98,74 @@ def config_logger():
 
         #sys.exit('Cannot read the logging configuration in '+ Config.LOG_CONF_FILE)
 
+def cem_main():
+    global CONFIG, LOGGER, vmID, CEM_SERVER_REST_API
+    
+    cem_server_url = CONFIG.CEM_SERVER_IP + ':' + CONFIG.CEM_SERVER_PORT
+    CEM_SERVER_REST_API = cem_server_api(LOGGER, cem_server_url, auth_token=CONFIG.REST_API_SECRET)
+
+    # Get my vmID
+    if not vmID:
+        vmID = CEM_SERVER_REST_API.register()
+        LOGGER.info('Cem agent %s registered '%(vmID))
+    
+    if vmID:
+        # Obtain plugin configuration
+        plugins_configuration = CEM_SERVER_REST_API.get_plugins_configuration(vmID)
+
+        if ('plugins' not in plugins_configuration) or ('users_list' not in plugins_configuration) or ('assigned_users' not in plugins_configuration):
+            LOGGER.error('plugins, assigned_users or users_list not in plugins_configuration')
+            return False
+            
+        LOGGER.info('Plugins configuration obtained successfully')
+        LOGGER.debug(json.dumps(plugins_configuration))
+
+        plugins_results = {}
+
+        # Execute all plugins
+        for p_name, p_config in plugins_configuration['plugins'].items():
+            # Check if plugin exists and it is allowed 
+            if p_name not in CONFIG.ALLOWED_PLUGINS:
+                LOGGER.error('Plugin "%s" is not allowed or is not exists')
+                plugins_results[p_name] = {}
+                continue
+            try:
+                # Create plugin
+                p = eval(p_name)(logging.getLogger('Plugin'), p_name, p_config)
+
+                # Execute plugin
+                plugins_results[p_name] = p.do_monitoring(plugins_configuration['users_list'], plugins_configuration['assigned_users'])
+                LOGGER.debug('Plugin %s successfully executed' %(p_name))
+            except:
+                LOGGER.error('Something wrong during the execution of the plugin %s'%(p_name))
+                plugins_results[p_name] = {}
+        
+        # Send plugins_results to CEM Server 
+        CEM_SERVER_REST_API.send_monitoring_info(vmID, plugins_results)
+        LOGGER.info('Monitoring infomation send it successfully to CEM Server')
+        LOGGER.debug( json.dumps(plugins_results) )
+
+
 def start_daemon():
-    global REST_SERVER 
+    global CEM_MAIN_LOOP, CONFIG
     LOGGER.info( '------------- Starting Cluster Elasticity Manager - Agent %s -------------' % cem_version)
-    REST_SERVER = REST_Server.run_in_thread(host=CONFIG.CEM_API_REST_HOST, port=CONFIG.CEM_API_REST_PORT, config=CONFIG )
+    CEM_MAIN_LOOP = RepeatedTimer(CONFIG.MONITORING_PERIOD, cem_main)
+    CEM_MAIN_LOOP.start()
+    CEM_MAIN_LOOP.wait_until_cancel()
 
-    while REST_SERVER.is_alive():
-        pass
-
-def stop_daemon( ):
-    global REST_SERVER 
-    REST_Server.stop()
-    while REST_SERVER.is_alive():
-        pass
+def stop_daemon():
+    global CEM_MAIN_LOOP, CEM_SERVER_REST_API
+    CEM_MAIN_LOOP.stop()
+    CEM_SERVER_REST_API.deregister()
+    LOGGER.info('Cem agent %s deregistered '%(vmID))
     LOGGER.info( '------------- Cluster Elasticity Manager - Agent stopped -------------' )
 
-    
 
 def signal_int_handler(signal, frame):
     """
     Callback function to catch the system signals
     """
     stop_daemon()
-
 
 if __name__ == "__main__":
     signal.signal(signal.SIGINT, signal_int_handler)
