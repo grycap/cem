@@ -73,8 +73,8 @@ class cem_server_api():
 
     def send_monitoring_info(self, vmID, info):
         myheaders = self.__auth_header()
-        
-        data = { 'timestamp': time.time(), 'data': info}
+        myheaders['Content-type'] = 'application/json'       
+        data = json.dumps({ 'timestamp': time.time(), 'data': info})
         url = self.protocol + '://' + self.url + self.__MONITORING_RESULT_URL.replace('<vmID>', vmID)
         response = self.rest.do_request( method='POST', url=url, extra_headers=myheaders, body=data)
         if response:

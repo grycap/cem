@@ -139,6 +139,28 @@ def demand_resources():
     bottle.response.status = 200
     return "Added to queue: "+ str(r)
 
+@app.route('/asking_deallocate', method='POST')
+def demand_resources():
+    global REQUEST_QUEUE
+    LOG.debug("Received /asking_deallocate")
+    r_data = {}
+    content_type = get_media_type('Content-Type')
+    LOG.debug("content_type_: "+str(content_type))
+    if content_type:
+        if 'application/json' in content_type:
+            read_data = str(bottle.request.body.read() )
+            try:
+                r_data = json.loads( read_data )
+            except:
+                LOG.error("Cannot read the body of the request")    
+                
+    r = Request( request_type='asking_deallocate', data=r_data, auth={} )
+    LOG.debug("r: "+str(r))
+    REQUEST_QUEUE.put(item=r, block=True, timeout=None)
+    bottle.response.content_type = "text/plain"
+    bottle.response.status = 200
+    return "Added to queue: "+ str(r)
+
 # Requests by PRIVILEGED_USER
 @app.route('/remove_resources', method='POST')
 def remove_resource():
@@ -317,31 +339,34 @@ def cem_agent_monitoring(vmID):
     content_type = get_media_type('Content-Type')
     LOG.debug("content_type_: "+str(content_type))
     r = None
+    resource = None
 
     if 'Authorization' in bottle.request.headers:
         token = bottle.request.headers['Authorization']
 
+   
     if content_type:
         if 'application/json' in content_type:
-            read_data = str(bottle.request.body.read() )
-            #LOG.debug("read: "+ read_data)
+            read_data = bottle.request.body.read() 
+            LOG.debug("read_data: "+ read_data)
             try:
                 read_json = json.loads( read_data )
                 r_data = read_json['data']
                 timestamp = read_json['timestamp']
                 resource = check_client_ip(bottle.request.environ.get('HTTP_X_FORWARDED_FOR') or bottle.request.environ.get('REMOTE_ADDR'))
-                r = Request(request_type='agent_monitoring', data={ 'data': r_data, 'resource': resource, 'timestamp': timestamp }, auth={} )
+                r = Request(request_type='agent_monitoring', data={ 'data': r_data, 'resource': resource.to_tuple(), 'timestamp': timestamp }, auth={} )
             except:
                 LOG.error("Cannot read the body of the request")
     
     bottle.response.content_type = "application/json"
     bottle.response.status = 403
     # Check token
-    if check_auth(token) and (vmID == resource.vmID):
-        REQUEST_QUEUE.put(item=r, block=True, timeout=None)
-        bottle.response.content_type = "text/plain"
-        bottle.response.status = 200
-        return "Added to queue: "+ str(r)
+    if check_auth(token) and resource:
+        if (vmID == resource.vmID):
+            REQUEST_QUEUE.put(item=r, block=True, timeout=None)
+            bottle.response.content_type = "text/plain"
+            bottle.response.status = 200
+            return "Added to queue: "+ str(r)
 
 @app.route('/cem_agent/monitoring/<vmID>', method='GET')
 def cem_agent_plugin_info(vmID):

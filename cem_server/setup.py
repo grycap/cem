@@ -31,7 +31,7 @@ setup(name='cem',
     author=author,
     author_email='serlohu@upv.es',
     url='https://github.com/grycap/cem',
-    packages = [ 'cem_server' ],
+    packages = [ 'cem_server', 'cem_server/plugins' ],
     platforms=["any"],
     data_files = [
         ('/etc/cem', [ 

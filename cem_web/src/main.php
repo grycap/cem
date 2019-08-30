@@ -55,6 +55,31 @@ else
 			</script>
 	
 		</head>
+		<script type="text/javascript" charset="utf-8">
+				function sleep (time) {
+						return new Promise((resolve) => setTimeout(resolve, time));
+				}
+
+				function confirm_deallocate() {
+					swal({
+						title: "Sure that you do not want your resources?" ,
+						text: "",
+						icon: "warning",
+						buttons: true,
+						dangerMode: true,
+						})
+						.then((willDelete) => {
+							if (willDelete) 
+							{
+								swal("Request sended", { icon: "success" });
+								sleep(1000).then(() => {
+									window.location.href = 'do.php?op=ask_deallocate&';
+								});
+							}
+					});
+				}
+			</script>
+
 		<body class="is-preload">
 			<div id="page-wrapper">
 				
@@ -115,12 +140,16 @@ else
 						<td><?php echo $host ?></td>
 						<td><?php echo $username ?></td>
 						<td><?php echo $password ?></td>
+						<td><a class="button special icon fa-close" onclick="javascript:confirm_deallocate()" href=#>Cancelar recursos</a> </td>
 					</tr>
 				<tbody>
 			</table>
 			<p> * <i>Recuerde que debe estar conectado a la VPN de la UPV para poder acceder al recurso informático.</i> </p>
 		</div>
+		
+
 	</div>	
+	
 <?php	
 	}
 
@@ -140,7 +169,8 @@ else
 				<script src="assets/js/breakpoints.min.js"></script>
 				<script src="assets/js/util.js"></script>
 				<script src="assets/js/main.js"></script>
-			
+				<script src="assets/js/sweetalert.min.js"></script>
+						
 		</body>
 	</html>
 <?php

@@ -29,12 +29,11 @@ from db import DataBase
 from Request import Request
 from IM_api import IMRestAPI
 from IptRest_api import IptRest
-from CEM_agent_client import CEM_Agent_client
 from Resource import Resource, ResourceState, ResourceUtilizationState
 from User import UserState
 from IM_api import read_radl
 
-
+from plugins.check_commands import check_commands
 
 def sort_by_usage( resource_list  ) :
     res_list = []
@@ -494,6 +493,9 @@ class ClusterElasticityManager():
                 elif r.request_type == 'demand_resources':
                     self.LOG.debug('demand_resources: '+str(r))
                     self.__process_demand_resources(r)
+                elif r.request_type == 'asking_deallocate':
+                    self.LOG.debug('asking_deallocate: '+str(r))
+                    self.__process_asking_deallocate(r)
                 # Requests by PRIVILEGED_USER (that call to update_resource_assignation and im_requests)
                 elif r.request_type == 'remove_resources':
                     self.LOG.debug('remove_resources: '+str(r))
@@ -559,16 +561,48 @@ class ClusterElasticityManager():
         
         self.LOG.debug('End of __demand_resources ')
         return True
+
+    def __process_asking_deallocate(self, request):  
+        username = None
+        try:
+            data = request.data  #json.loads( request.data )
+            username = data['user']
+        except (ValueError):
+            self.LOG.error("Data received invalid: " + str(request))
+            return False
+        vmID_assigned = None
+        current_alloc_id = None
+        # Obtain the vmID and the alloc_id
+        if self._db.connect():
+            aux = self._db.select('vmID_assigned,current_alloc_id', 'users', where='name=="'+username+'"'  )
+            if aux:
+                vmID_assigned = aux[0][0]
+                current_alloc_id = aux[0][1]
+            self._db.close()
+
+        
+
+        if not vmID_assigned or not current_alloc_id:
+            return False
+        
+        self.remove_resource_assignation_for_user(vmID_assigned, username, current_alloc_id, username)
+
+        
+        self.LOG.debug('End of __asking_deallocate')
+        return True
+
     '''
         Use the monitoring information sent by the CEM AGENT in a node 
             - Update the users state 
     '''
     def __process_agent_monitoring(self, request):
-        r = request['resource']
+        r = Resource(request.data['resource'])
         vmID = r.vmID
-        agent_data = request['data']
-        timestamp = request['timestamp']
+        agent_data = request.data['data']
+        timestamp = request.data['timestamp']
         
+        # Due to the CEM-Agent response,  the contextualization was completed at least one time in the past. So, the Resource State is set to Configured
+        r.set_state(ResourceState.CONFIGURED)
         r.new_monitoring_info(timestamp, agent_data )
         # Store the agent monitoring info in the DB
         if self._db.connect():
@@ -910,7 +944,11 @@ class ClusterElasticityManager():
 
                     if vmID in im_states['state']['vm_states']:
                         # Change state
-                        __resource.set_state(  parse_im_state(im_states['state']['vm_states'][vmID]) )                   
+                        __resource.set_state(  parse_im_state(im_states['state']['vm_states'][vmID]) )  
+                        
+                        # Due to the CEM-Agent response,  the contextualization was completed at least one time in the past. So, the Resource State is set to Configured
+                        if __resource.cem_agent_data:                        
+                            __resource.set_state(ResourceState.CONFIGURED)
                         
                         if __resource.nodename == 'default_name' or __resource.ip == 'default_ip':
                             node_info = self.__im_rest.get_node_info(vmID)

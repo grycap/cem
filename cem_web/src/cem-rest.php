@@ -9,7 +9,7 @@ class CEMRest
         return new self($host, $port);
     }
 
-    public function __construct($host = "localhost", $port = 8800)
+    public function __construct($host = "localhost", $port = 10000)
     {
         $this->_host     = $host;
         $this->_port     = $port;
@@ -112,6 +112,14 @@ class CEMRest
         $data = json_encode($this->get_auth_data());
         $headers = array('Content-Type: application/json' );
         $res = $this->BasicRESTCall("POST", '/demand_resources', $headers, $data);
+        return $res->getOutput();
+    }
+
+    public function AskingDeallocate()
+    {
+        $data = json_encode($this->get_auth_data());
+        $headers = array('Content-Type: application/json' );
+        $res = $this->BasicRESTCall("POST", '/asking_deallocate', $headers, $data);
         return $res->getOutput();
     }
 

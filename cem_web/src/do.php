@@ -60,6 +60,12 @@ else
             remove_assignation ( $_SESSION['user'], $_SESSION['password'], $_GET['vmID'], $_GET['username'], $_GET['alloc_id'] );
             header('Location: info-assignations.php');
         }
+        elseif ( $op == "ask_deallocate")
+        {
+            include_once 'resources.php';
+            ask_deallocate ( $_SESSION['user'], $_SESSION['password'] );
+            header('Location: main.php');
+        }
         else 
         {
             header('Location: login.php?error=Invalid operation');

@@ -27,6 +27,18 @@ function remove_resources ( $username, $password, $vmID )
     return true;
     
 }
+
+function ask_deallocate ( $username, $password ) 
+{
+    include('config.php');
+    
+    include_once 'cem-rest.php';
+    $cem = CEMRest::connect($cem_host, $cem_port);
+    $response = $cem->AskingDeallocate();
+    return true;
+    
+}
+
 function restart_resources ( $username, $password, $vmID ) 
 {
     include('config.php');
