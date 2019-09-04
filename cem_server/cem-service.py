@@ -132,10 +132,6 @@ def start_daemon():
 
     CEM = ClusterElasticityManager( CONFIG, REQUEST_QUEUE, DB )
     
-    if not CEM.check_db():
-        print('Error connecting with the DB!!.')
-        sys.exit(2)
-
     REST_Server.run_in_thread(host=CONFIG.CEM_API_REST_HOST, port=CONFIG.CEM_API_REST_PORT, request_queue=REQUEST_QUEUE, db=DB, rest_api_secret=CONFIG.REST_API_SECRET, cem=CEM)
     
     CEM.run_in_thread()

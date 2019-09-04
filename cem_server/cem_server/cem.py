@@ -98,6 +98,8 @@ class ClusterElasticityManager():
     monitoring_loop = False
     manager_loop = False
 
+    
+
     def __init__(self, config, request_queue, _db):
         self.__Config = config
         self._db = _db
@@ -107,10 +109,13 @@ class ClusterElasticityManager():
         self.__iprtest = IptRest(host=self.__Config.IPTREST_HOST, port=self.__Config.IPTREST_PORT)
         self.plugins_configuration = {'check_commands': { 'target_commands': ['/opt/Xilinx/Vivado/2018.2/bin/vivado', 'vivado'] }}
 
+        self.init_db()
+
     def get_active_plugins(self):
         return ['check_commands']
 
     def check_db(self):
+        
         if self._db.connect():
             res = self._db.execute('SELECT * FROM users')
             if len(res) > 0:
@@ -123,7 +128,30 @@ class ClusterElasticityManager():
 
             return True
         return False
-    
+
+    def init_db (self):
+        for table in ['users', 'allocations', 'resources']:
+            if not self._db.table_exists(table):
+                ok = False
+        if not ok:
+            self.__create_db_tables()
+            
+    def __create_db_tables(self):
+        self.LOG.info('Creating database tables...')
+        try: 
+            with open('/etc/cem/db_config.db') as f:
+                content = f.readlines()
+            
+            for line in content:
+                if self._db.connect():
+                    self._db.execute(line)
+                    self._db.close()
+
+            self.LOG.info('Database tables created successfully')
+        except:
+            self.LOG.error('Error creating datables tables')
+            sys.exit(2)
+
     def start (self):
         self.main_loop = True
         self.LOG.debug('Start to process requests from queue')

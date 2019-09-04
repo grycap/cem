@@ -151,7 +151,7 @@ def start_daemon():
     LOGGER.info( '------------- Starting Cluster Elasticity Manager - Agent %s -------------' % cem_version)
     CEM_MAIN_LOOP = RepeatedTimer(CONFIG.MONITORING_PERIOD, cem_main)
     CEM_MAIN_LOOP.start()
-    CEM_MAIN_LOOP.wait_until_cancel()
+    #CEM_MAIN_LOOP.wait_until_cancel()
 
 def stop_daemon():
     global CEM_MAIN_LOOP, CEM_SERVER_REST_API

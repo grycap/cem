@@ -18,8 +18,6 @@
 */
 
 
-//$im_use_rest=false;
-//$im_port=8899;
 $db="/var/www/www-data/cem.db";
 $db_users_table="users";
 $db_allocation_table="allocations";

@@ -79,6 +79,15 @@ class DataBase:
             self.connection.commit()
             return cur.lastrowid
 
+    def table_exists(self, table):
+        sql = 'SELECT name from sqlite_master where type="table" and name="' + table + '"'
+        res = None
+        if self.connect():
+            res = self.execute(sql)
+            self.close()
+        if len(res) !=0:
+            return True
+        return False
 
     def select (self, cols, table, where=None):
         sql = 'SELECT '+ cols + ' FROM '+table

@@ -36,7 +36,8 @@ setup(name='cem',
     data_files = [
         ('/etc/cem', [ 
             'etc/cem.cfg',
-            'etc/logging.cfg'
+            'etc/logging.cfg',
+            'etc/db_config.db'
         ]),
         ('/etc/init.d', [
             'service/cem'
