@@ -19,9 +19,9 @@ import threading
 import logging
 import json
 
-from Request import Request
-from db import DataBase 
-from Resource import Resource, ResourceState, ResourceUtilizationState
+from cem_server.Request import Request
+from cem_server.db import DataBase 
+from cem_server.Resource import Resource, ResourceState, ResourceUtilizationState
 
 LOG = logging.getLogger('RESTServer')
 app = bottle.Bottle()
@@ -48,7 +48,8 @@ class RESTServer(bottle.ServerAdapter):
             server.stop()
 
     def shutdown(self):
-        self.srv.stop()
+        if self.srv:
+            self.srv.stop()
 
 def run(host, port, request_queue, db, rest_api_secret, cem):
     global bottle_server,LOG, REQUEST_QUEUE, DB, REST_API_SECRET, CEM

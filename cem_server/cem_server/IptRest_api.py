@@ -16,7 +16,7 @@
 
 import logging
 import json
-from REST_api import REST
+from cem_server.REST_api import REST
 
 class IptRest():
 

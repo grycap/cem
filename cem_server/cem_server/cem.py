@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
-import Queue
+import queue
 import threading
 import json
 import sys 
@@ -25,15 +25,15 @@ import uuid
 import math
 import shlex 
 
-from db import DataBase 
-from Request import Request
-from IM_api import IMRestAPI
-from IptRest_api import IptRest
-from Resource import Resource, ResourceState, ResourceUtilizationState
-from User import UserState
-from IM_api import read_radl
+from cem_server.db import DataBase 
+from cem_server.Request import Request
+from cem_server.IM_api import IMRestAPI
+from cem_server.IptRest_api import IptRest
+from cem_server.Resource import Resource, ResourceState, ResourceUtilizationState
+from cem_server.User import UserState
+from cem_server.IM_api import read_radl
 
-from plugins.check_commands import check_commands
+from cem_server.plugins.check_commands import check_commands
 
 def sort_by_usage( resource_list  ) :
     res_list = []
@@ -130,6 +130,7 @@ class ClusterElasticityManager():
         return False
 
     def init_db (self):
+        ok = True
         for table in ['users', 'allocations', 'resources']:
             if not self._db.table_exists(table):
                 ok = False

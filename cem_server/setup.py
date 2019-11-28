@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 
 # CEM - Cluster Elasticity Manager 
 # Copyright (C) 2011 - GRyCAP - Universitat Politecnica de Valencia

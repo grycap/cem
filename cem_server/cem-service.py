@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#! /usr/bin/env python3
 #
 # CEM - Cluster Elasticity Manager 
 # Copyright (C) 2011 - GRyCAP - Universitat Politecnica de Valencia
@@ -24,7 +24,7 @@ import sys
 import threading
 import signal
 import time
-import Queue
+import queue
 
 import cem_server.REST_Server as REST_Server
 from cem_server.config import Config
@@ -36,7 +36,7 @@ LOGGER = logging.getLogger('CEM')
 CEM = None
 REST_SERVER = None
 CONFIG = Config()
-REQUEST_QUEUE = Queue.Queue()
+REQUEST_QUEUE = queue.Queue()
 DB = DataBase(CONFIG.DB)
 
 class ExtraInfoFilter(logging.Filter):
@@ -132,11 +132,11 @@ def start_daemon():
 
     CEM = ClusterElasticityManager( CONFIG, REQUEST_QUEUE, DB )
     
-    REST_Server.run_in_thread(host=CONFIG.CEM_API_REST_HOST, port=CONFIG.CEM_API_REST_PORT, request_queue=REQUEST_QUEUE, db=DB, rest_api_secret=CONFIG.REST_API_SECRET, cem=CEM)
+    bottle_thr = REST_Server.run_in_thread(host=CONFIG.CEM_API_REST_HOST, port=CONFIG.CEM_API_REST_PORT, request_queue=REQUEST_QUEUE, db=DB, rest_api_secret=CONFIG.REST_API_SECRET, cem=CEM)
     
     CEM.run_in_thread()
 
-    while CEM.threads[0].is_alive() and CEM.threads[1].is_alive() and CEM.threads[2].is_alive():
+    while bottle_thr.is_alive() and CEM.threads[0].is_alive() and CEM.threads[1].is_alive() and CEM.threads[2].is_alive():
         pass
 
     

@@ -17,7 +17,7 @@
 import logging
 import sys
 
-from REST_api import REST
+from cem_server.REST_api import REST
 
 def read_radl (filename, LOG):
     radl = None

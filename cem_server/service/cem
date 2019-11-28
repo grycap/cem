@@ -48,7 +48,7 @@ do_start()
         ${DAEMON} > ${LOG_PATH}/cem.out 2> ${LOG_PATH}/cem.err &  
         pid=$!
         echo ${pid} > ${PID_FILE}
-        sleep 1
+        sleep 2
         alive=`ps ${pid} | grep ${pid} | wc -l`
         if [ ${alive} -eq 1 ]; then
             echo "${SERVICE_NAME} started successfully"
