@@ -127,7 +127,7 @@ def demand_resources():
     LOG.debug("content_type_: "+str(content_type))
     if content_type:
         if 'application/json' in content_type:
-            read_data = str(bottle.request.body.read() )
+            read_data =  bottle.request.body.read().decode('UTF-8')
             try:
                 r_data = json.loads( read_data )
             except:
@@ -149,7 +149,7 @@ def demand_resources():
     LOG.debug("content_type_: "+str(content_type))
     if content_type:
         if 'application/json' in content_type:
-            read_data = str(bottle.request.body.read() )
+            read_data =  bottle.request.body.read().decode('UTF-8')
             try:
                 r_data = json.loads( read_data )
             except:
@@ -174,7 +174,7 @@ def remove_resource():
     LOG.debug("content_type_: "+str(content_type))
     if content_type:
         if 'application/json' in content_type:
-            read_data = str(bottle.request.body.read() )
+            read_data =  bottle.request.body.read().decode('UTF-8')
             #LOG.debug("read: "+ read_data)
             try:
                 read_json = json.loads( read_data )
@@ -194,14 +194,13 @@ def remove_resource():
 def add_resources():
     global REQUEST_QUEUE
     LOG.debug("Received /add_resources")
-    
     r_data = {}
     r_auth = {}
     content_type = get_media_type('Content-Type')
     LOG.debug("content_type_: "+str(content_type))
     if content_type:
         if 'application/json' in content_type:
-            read_data = str(bottle.request.body.read() )
+            read_data =  bottle.request.body.read().decode('UTF-8')
             #LOG.debug("read: "+ read_data)
             try:
                 read_json = json.loads( read_data )
@@ -227,7 +226,7 @@ def restart_resources():
     LOG.debug("content_type_: "+str(content_type))
     if content_type:
         if 'application/json' in content_type:
-            read_data = str(bottle.request.body.read() )
+            read_data =  bottle.request.body.read().decode('UTF-8')
             #LOG.debug("read: "+ read_data)
             try:
                 read_json = json.loads( read_data )
@@ -253,7 +252,7 @@ def stop_resources():
     LOG.debug("content_type_: "+str(content_type))
     if content_type:
         if 'application/json' in content_type:
-            read_data = str(bottle.request.body.read() )
+            read_data =  bottle.request.body.read().decode('UTF-8')
             #LOG.debug("read: "+ read_data)
             try:
                 read_json = json.loads( read_data )
@@ -280,7 +279,7 @@ def remove_assignation():
     LOG.debug("content_type_: "+str(content_type))
     if content_type:
         if 'application/json' in content_type:
-            read_data = str(bottle.request.body.read() )
+            read_data =  bottle.request.body.read().decode('UTF-8')
             #LOG.debug("read: "+ read_data)
             try:
                 read_json = json.loads( read_data )
@@ -348,7 +347,7 @@ def cem_agent_monitoring(vmID):
    
     if content_type:
         if 'application/json' in content_type:
-            read_data = bottle.request.body.read() 
+            read_data = bottle.request.body.read().decode('UTF-8') 
             LOG.debug("read_data: "+ read_data)
             try:
                 read_json = json.loads( read_data )
