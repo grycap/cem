@@ -319,10 +319,8 @@ def cem_agent_register():
 def cem_agent_deregister():
     global REQUEST_QUEUE
     LOG.debug("Received /cem_agent/deregister")
-
     if 'Authorization' in bottle.request.headers:
         token = bottle.request.headers['Authorization']
-
     bottle.response.content_type = "plain/text"
     bottle.response.status = 403
     result = {}

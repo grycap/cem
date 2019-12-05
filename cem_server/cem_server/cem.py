@@ -1106,7 +1106,7 @@ class ClusterElasticityManager():
                 
                 # if the infrastructure has idle resources wasted, we can stop them
                 while (idle_resources_wasted > 0) and (required_stopped_resources>0):
-                    vmID = idle_resources.keys()[0]
+                    vmID = list(idle_resources.keys())[0]
                     del idle_resources[vmID]
                     SUSPEND_RESOURCES.append(vmID)
                     idle_resources_wasted -= 1
