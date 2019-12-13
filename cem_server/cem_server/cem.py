@@ -54,9 +54,10 @@ def execute_cmd( cmd_string, LOG, fetch=True):
     out, err = p.communicate()
     rc = p.returncode
 
-    output = err
+    output = err.decode('UTF-8') 
+
     if rc == 0:
-        output= out
+        output= out.decode('UTF-8') 
 
     if fetch:
         output = output.split('\n')
@@ -186,6 +187,8 @@ class ClusterElasticityManager():
         th_manager.daemon = True
         th_manager.start()
         self.threads.append(th_manager)
+
+        self.LOG.debug('CEM threads: '+str(self.threads))
 
     def stop (self):
         self.main_loop = False
@@ -900,7 +903,7 @@ class ClusterElasticityManager():
                     self.LOG.info('Redirection created: %s'%(json.dumps(cem_redir)))
 
         # Check if -A FORWARD_direct -m conntrack --ctstate NEW,RELATED -j ACCEPT is in iptables-save           
-        output, rc =execute_cmd( 'iptables-save', self.LOG)
+        output, rc = execute_cmd( 'iptables-save', self.LOG)
         if rc == 0:
             if not "-A FORWARD_direct -m conntrack --ctstate NEW,RELATED -j ACCEPT" in output:
                 #self.LOG.warn('iptables forwarding is not configured: exit_code= %d, output=%s' % (rc, output))
