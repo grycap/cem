@@ -659,21 +659,24 @@ class ClusterElasticityManager():
                 old_state = db_data_user
 
             new_state = old_state
-            self.LOG.debug('old_state: %s' % ( old_state.name ) ) 
+            self.LOG.debug('user %s - old_state: %s' % ( username, old_state.name ) ) 
 
             # Use the agent monitoring information to update the user state
             plugins_result = None
             for plugin_name in self.get_active_plugins():
                 p = eval(plugin_name)(plugin_name, self.plugins_configuration[plugin_name])
                 # OR between all activated plugin results
-                plugins_result = plugins_result or p.check_utilization(agent_data[plugin_name][username])
+                if username in agent_data[plugin_name]:
+                    plugins_result = plugins_result or p.check_utilization(agent_data[plugin_name][username])
+                else:
+                    self.LOG.warning('No information of user "%s" using plugin %s'%(username, plugin_name) )
 
             if plugins_result:
                 new_state = UserState.ACTIVE
             else:
                 new_state = UserState.RESOURCES_ASSIGNED
 
-            self.LOG.debug('new_state: %s' % ( new_state.name ) ) 
+            self.LOG.debug('user %s - new_state: %s' % ( username, new_state.name ) ) 
 
             if new_state != old_state:
                 self.LOG.debug('new_state: '+new_state.name + ', old_state: '+old_state.name)
@@ -979,7 +982,7 @@ class ClusterElasticityManager():
                         __resource.set_state(  parse_im_state(im_states['state']['vm_states'][vmID]) )  
                         
                         # Due to the CEM-Agent response,  the contextualization was completed at least one time in the past. So, the Resource State is set to Configured
-                        if __resource.cem_agent_data:                        
+                        if __resource.cem_agent_data and (__resource.state in [ResourceState.CONFIGURED, ResourceState.CONFIGURING]):                        
                             __resource.set_state(ResourceState.CONFIGURED)
                         
                         if __resource.nodename == 'default_name' or __resource.ip == 'default_ip':
@@ -1140,12 +1143,7 @@ class ClusterElasticityManager():
 
             self.LOG.info ( ('There are %d resources IDLE where %d are wasted: %s') % (len(idle_resources) , idle_resources_wasted, str(idle_resources)) ) 
 
-            
-
-
             # Check if some user with privileged role wants something (destroy / create NODES)  
-
-
 
             # If there are some resources in state CONFIGURING / PENDING / UNCONFIGURED means that some previous ADD_RESOURCE request was done, so CEM-Manager does not attend it again
             future_resources = 0
@@ -1155,10 +1153,12 @@ class ClusterElasticityManager():
                     future_resources = len(aux)
                 __DB.close()
                 
+            future_add_resources = ADD_RESOURCES - future_resources
+            if (future_add_resources<0):
+                future_add_resources = 0
+            self.LOG.info ( ('Required resources %d, resources that will be powered on %d') % ( ADD_RESOURCES , future_add_resources ) ) 
 
-            self.LOG.info ( ('Required resources %d, resources that will be powered on %d') % ( ADD_RESOURCES , ADD_RESOURCES-future_resources ) ) 
-
-            ADD_RESOURCES -= future_resources
+            ADD_RESOURCES  = future_add_resources
 
             # Any node can be removed? (state FAILED,IDLE during too much time or many resources STOPPED)
 
