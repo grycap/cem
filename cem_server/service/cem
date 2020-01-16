@@ -45,7 +45,7 @@ do_start()
             return 0
         fi
     else
-        ${DAEMON} > ${LOG_PATH}/cem.out 2> ${LOG_PATH}/cem.err &  
+        python3 ${DAEMON} > ${LOG_PATH}/cem.out 2> ${LOG_PATH}/cem.err &  
         pid=$!
         echo ${pid} > ${PID_FILE}
         sleep 2
