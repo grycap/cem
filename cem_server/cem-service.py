@@ -38,6 +38,8 @@ REST_SERVER = None
 CONFIG = Config()
 REQUEST_QUEUE = queue.Queue()
 DB = DataBase(CONFIG.DB)
+DB_RestServer = DataBase(CONFIG.DB)
+
 
 class ExtraInfoFilter(logging.Filter):
     """
@@ -127,12 +129,12 @@ def config_logger():
         #sys.exit('Cannot read the logging configuration in '+ Config.LOG_CONF_FILE)
 
 def start_daemon():
-    global CEM, REQUEST_QUEUE, DB
+    global CEM, REQUEST_QUEUE, DB, DB_RestServer
     LOGGER.info( '------------- Starting Cluster Elasticity Manager %s -------------' % cem_version)
 
     CEM = ClusterElasticityManager( CONFIG, REQUEST_QUEUE, DB )
     
-    bottle_thr = REST_Server.run_in_thread(host=CONFIG.CEM_API_REST_HOST, port=CONFIG.CEM_API_REST_PORT, request_queue=REQUEST_QUEUE, db=DB, rest_api_secret=CONFIG.REST_API_SECRET, cem=CEM)
+    bottle_thr = REST_Server.run_in_thread(host=CONFIG.CEM_API_REST_HOST, port=CONFIG.CEM_API_REST_PORT, request_queue=REQUEST_QUEUE, db=DB_RestServer, rest_api_secret=CONFIG.REST_API_SECRET, cem=CEM)
     
     CEM.run_in_thread()
 

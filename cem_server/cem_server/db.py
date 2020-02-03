@@ -69,6 +69,8 @@ class DataBase:
             except (ValueError):
                 DataBase.LOG.error('Cannot close connection with ' + self.db_file + ': ' + ValueError)
                 return False
+            except:
+                DataBase.LOG.error('Some error closing the connection')
 
     def insert (self,args):
         if self.check_connection_ok ():
