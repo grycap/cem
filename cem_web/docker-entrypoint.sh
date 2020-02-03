@@ -1,6 +1,7 @@
 #!/bin/bash
 set -e
 DEFAULT_CEM_SERVER_IP="0.0.0.0"
+DEFAULT_DB_PATH="/var/www/www-data/cem.db"
 
 if [ "$1" = 'apache2-foreground' ]; then
 
