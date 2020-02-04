@@ -132,7 +132,7 @@ class ClusterElasticityManager():
 
     def init_db (self):
         ok = True
-        for table in ['users', 'allocations', 'resources']:
+        for table in ['users', 'allocations', 'resources', 'general_monitoring']:
             if not self._db.table_exists(table):
                 ok = False
         if not ok:
@@ -700,12 +700,18 @@ class ClusterElasticityManager():
     '''
     def __process_server_monitoring(self, request):
         res = True
+
+        current_resourceState=[0]*len(ResourceState)
+        current_utilizationState=[0]*len(ResourceUtilizationState)
+
         for vmID, resource_tuple in request.data.items():
-            r= Resource(resource_tuple)
+            r = Resource(resource_tuple)
             if self.__Config.IPTREST_ENABLED and r.is_configured() and r.assigned_rdp_url == 'default_rdp_url':
                 r.set_assigned_rdp_url( self.__obtain_rdp_url(r.ip, self.__Config.RDP_DEST_PORT, self._db ) )
                 self.LOG.info('The RDP URL for node '+vmID +' is '+r.assigned_rdp_url)
             
+            current_resourceState[r.state.value] += 1 # general monitoring
+
             # Compute utilization_state
             utilization_state = ResourceUtilizationState.UNKNOWN
             users_assigned_to_node = self.get_users_assigned_to_node(vmID, self._db) 
@@ -717,17 +723,30 @@ class ClusterElasticityManager():
                 else:
                     utilization_state = ResourceUtilizationState.FULL
             r.set_utilization_state(utilization_state)
+            
+            current_utilizationState[utilization_state.value] += 1 # general monitoring
 
-            # Store the resource information to DB
+            # Store the node resource information to DB
             if self._db.connect():
                 if not self._db.update(table='resources', set_tuple_list=r.transform_to_tuple_DB_SET(), where='vmID=="'+vmID+'"'):
                     self.LOG.error('Cannot update the monitoring information of node ' + vmID)
                     res = False
                 self._db.close()
 
-            self.LOG.debug('vmID=%s --> users_assigned_to_node: %s' %(vmID, str(users_assigned_to_node) ) )
-            
+            self.LOG.debug('***** __process_server_monitoring ***** vmID=%s --> users_assigned_to_node: %s' %(vmID, str(users_assigned_to_node) ) )
+        
+        # Store the resource information to DB
+        if self._db.connect():
+            sql = ''' INSERT INTO general_monitoring (timestamp, data) VALUES ( ?, ?) ''' 
+            timestamp =  int(time.time())
+            data = {'current_utilizationState': current_utilizationState , 'current_resourceState': current_resourceState }
+            if self._db.connect():
+                if not self._db.execute(sql, args=(timestamp, json.dumps(data) ), fetch=False ) : 
+                    res = False
+                    self.LOG.error('Cannot update the monitoring information of the infrastructure')
+            self._db.close()
 
+        self.LOG.debug('***** __process_server_monitoring ***** current_resourceState=%s,  current_utilizationState=%s' %( str(current_resourceState), str(current_utilizationState) ) )
         return res
 
     '''

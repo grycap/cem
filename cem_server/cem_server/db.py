@@ -74,7 +74,7 @@ class DataBase:
 
     def insert (self,args):
         if self.check_connection_ok ():
-            sql = ''' INSERT INTO allocation(vmID,name, available)
+            sql = ''' INSERT INTO allocation(vmID, name, available)
                 VALUES(?,?,?) '''
             cur = self.connection.cursor()
             cur.execute(sql, args)
