@@ -17,7 +17,7 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-$version="1.0.0"
+$version="1.0.0";
 $db="/var/www/www-data/cem.db";
 $db_users_table="users";
 $db_allocation_table="allocations";
