@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#! /usr/bin/env python3
 #
 # CEM - Cluster Elasticity Manager 
 # Copyright (C) 2011 - GRyCAP - Universitat Politecnica de Valencia
@@ -24,18 +24,22 @@ import sys
 import threading
 import signal
 import time
-import Queue
+import queue
 
 import cem_server.REST_Server as REST_Server
 from cem_server.config import Config
 from cem_server.cem import ClusterElasticityManager 
 from cem_server import __version__ as cem_version
+from cem_server.db import DataBase 
 
 LOGGER = logging.getLogger('CEM')
 CEM = None
 REST_SERVER = None
 CONFIG = Config()
-REQUEST_QUEUE = Queue.Queue()
+REQUEST_QUEUE = queue.Queue()
+DB = DataBase(CONFIG.DB)
+DB_RestServer = DataBase(CONFIG.DB)
+
 
 class ExtraInfoFilter(logging.Filter):
     """
@@ -125,20 +129,16 @@ def config_logger():
         #sys.exit('Cannot read the logging configuration in '+ Config.LOG_CONF_FILE)
 
 def start_daemon():
-    global CEM, REQUEST_QUEUE
+    global CEM, REQUEST_QUEUE, DB, DB_RestServer
     LOGGER.info( '------------- Starting Cluster Elasticity Manager %s -------------' % cem_version)
 
-    CEM = ClusterElasticityManager( CONFIG, REQUEST_QUEUE )
+    CEM = ClusterElasticityManager( CONFIG, REQUEST_QUEUE, DB )
     
-    if not CEM.check_db():
-        print('Error connecting with the DB!!.')
-        sys.exit(2)
-
-    REST_Server.run_in_thread(host=CONFIG.CEM_API_REST_HOST, port=CONFIG.CEM_API_REST_PORT, request_queue=REQUEST_QUEUE)
+    bottle_thr = REST_Server.run_in_thread(host=CONFIG.CEM_API_REST_HOST, port=CONFIG.CEM_API_REST_PORT, request_queue=REQUEST_QUEUE, db=DB_RestServer, rest_api_secret=CONFIG.REST_API_SECRET, cem=CEM)
     
     CEM.run_in_thread()
 
-    while CEM.threads[0].is_alive() and CEM.threads[1].is_alive() and CEM.threads[2].is_alive():
+    while bottle_thr.is_alive() and CEM.threads[0].is_alive() and CEM.threads[1].is_alive() and CEM.threads[2].is_alive():
         pass
 
     

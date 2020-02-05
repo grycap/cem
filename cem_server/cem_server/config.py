@@ -73,12 +73,15 @@ class Config:
 
     # Cem_agent
     REST_AGENT_API_SECRET = '6f0b387e-865c-4ac3-9ae1-6170b5fbcd79'
-    CEM_AGENT_PORT = '10000'
+    
+    AVAILABLES_PLUGINS = ['check_commands']
+    ACTIVE_PLUGINS = ['check_commands']
     
     # IPT Rest
     IPTREST_HOST = 'localhost'
     IPTREST_PORT = '8080'
     IPTREST_RANGE_SOURCE_PORTS = 9000, 9050
+    IPTREST_ENABLED = False
   
 config = ConfigParser()
 config.read([ Config.CEM_PATH + '/cem.cfg'])

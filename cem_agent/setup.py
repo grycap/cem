@@ -31,7 +31,7 @@ setup(name='cem_agent',
     author=author,
     author_email='serlohu@upv.es',
     url='https://github.com/grycap/cem',
-    packages = [ 'cem_agent' ],
+    packages = [ 'cem_agent', 'cem_agent/plugins'],
     data_files = [
         ('/etc/cem-agent', [ 
             'etc/cem-agent.cfg',
@@ -46,5 +46,5 @@ setup(name='cem_agent',
         ( '/var/log/cem-agent', [])
     ],
     scripts=['cem_agent-service.py', 'service/cem-agent'],
-    install_requires = [ "bottle", "cherrypy"]
+    install_requires = [ 'requests' ]
 )

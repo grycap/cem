@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 
 # CEM - Cluster Elasticity Manager 
 # Copyright (C) 2011 - GRyCAP - Universitat Politecnica de Valencia
@@ -31,12 +31,13 @@ setup(name='cem',
     author=author,
     author_email='serlohu@upv.es',
     url='https://github.com/grycap/cem',
-    packages = [ 'cem_server' ],
+    packages = [ 'cem_server', 'cem_server/plugins' ],
     platforms=["any"],
     data_files = [
         ('/etc/cem', [ 
             'etc/cem.cfg',
-            'etc/logging.cfg'
+            'etc/logging.cfg',
+            'etc/db_config.db'
         ]),
         ('/etc/init.d', [
             'service/cem'
@@ -49,5 +50,5 @@ setup(name='cem',
         ])
     ],
     scripts=['cem-service.py', 'service/cem'],
-    install_requires = [ "bottle", "requests" , "cherrypy", "enum"]
+    install_requires = [ "bottle", "requests" , "cherrypy", "enum34"]
 )
