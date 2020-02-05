@@ -18,7 +18,6 @@ else
 	$dataNodeState_points = array();
 	$dataUtilizationNodeState_points = array();
 
-	print($general_monitoring_data[0])
 	for($i = 0; $i < count($general_monitoring_data[0]) ; $i++) 
 	{
 		array_push($dataNodeState_points, array("label" => $resources_states[$i], "y" => $general_monitoring_data[0][$i] ) );
