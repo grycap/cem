@@ -502,6 +502,8 @@ class ClusterElasticityManager():
                 port = rdp_url.split(':')[1]
                 if self.__iprtest.delete_redirection( source_port=port ) != None:
                     result = True
+            else: # rdp_url is 'default_rdp_url'
+                result = True
             __DB.close()
         return result
 

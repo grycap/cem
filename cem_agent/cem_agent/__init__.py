@@ -15,6 +15,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __all__ = ['config', 'Plugin', 'REST', 'utils', 'cem_server_api', 'RepeatedTimer']
-__version__ = '0.0.2'
+__version__ = '1.0.0'
 __author__ = 'Sergio Lopez'
 

@@ -17,11 +17,12 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-
+$version="1.0.0"
 $db="/var/www/www-data/cem.db";
 $db_users_table="users";
 $db_allocation_table="allocations";
 $db_resources_table="resources";
+$db_general_monitoring_table="general_monitoring";
 $cem_host="XXX";
 $cem_port="10000";
 
@@ -29,7 +30,7 @@ $DEFAULT_DB_vmID="-1";
 $DEFAULT_DB_alloc_id="-1";
 
 $users_states = [
-    "0" => "-",
+    "0" => "UNKNOWN",
     "1" => "NOTHING_RESERVED",
     "2" => "WAITING_RESOURCES",
     "3" => "RESOURCES_ASSIGNED",
@@ -37,7 +38,7 @@ $users_states = [
 ];
 
 $resources_states = [
-    "0" => "-",
+    "0" => "UNKNOWN",
     "1" => "PENDING",
     "2" => "CONFIGURING",
     "3" => "CONFIGURED",

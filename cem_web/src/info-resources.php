@@ -12,7 +12,23 @@ else
 
     include('resources.php');  
     include('config.php');  
-    $info_nodes = get_all_nodes_info();
+	$info_nodes = get_all_nodes_info();
+
+	$general_monitoring_data = get_resources_general_monitoring();
+	$dataNodeState_points = array();
+	$dataUtilizationNodeState_points = array();
+
+	print($general_monitoring_data[0])
+	for($i = 0; $i < count($general_monitoring_data[0]) ; $i++) 
+	{
+		array_push($dataNodeState_points, array("label" => $resources_states[$i], "y" => $general_monitoring_data[0][$i] ) );
+	}
+	
+	for($i = 0; $i < count($general_monitoring_data[1]) ; $i++) 	
+	{
+		array_push($dataUtilizationNodeState_points, array("label" => $utilization_states[$i], "y" => $general_monitoring_data[1][$i] ) );
+	}
+
     
 ?> 
 
@@ -37,8 +53,7 @@ else
 			<div id="page-wrapper">
 				
 				<?php include 'header.php'?> 
-				
-				
+								
 				<script type="text/javascript" charset="utf-8">
 					function sleep (time) {
   							return new Promise((resolve) => setTimeout(resolve, time));
@@ -98,7 +113,6 @@ else
 								}
 						});
 					}
-
 					function confirm_add(nodename, vmID) {
 
 						swal({
@@ -120,6 +134,56 @@ else
 					}
 
 				</script>
+
+				<script>
+				window.onload = function() {
+				
+				var chart = new CanvasJS.Chart("node_state", {
+					animationEnabled: true,
+					title:{
+						text: "Current node state overview"
+					},
+					axisY: {
+						title: "Number of nodes",
+						prefix: "",
+						suffix:  ""
+					},
+					data: [{
+						type: "column",
+						yValueFormatString: "#,### Units",
+						//indexLabel: "{y}",
+						//indexLabelPlacement: "inside",
+						//indexLabelFontWeight: "bolder",
+						//indexLabelFontColor: "white",
+						dataPoints: <?php echo json_encode($dataNodeState_points, JSON_NUMERIC_CHECK); ?>
+					}]
+				});
+				chart.render();
+				
+				var chart2 = new CanvasJS.Chart("node_utilization_state", {
+					animationEnabled: true,
+					title:{
+						text: "Current node utilization state overview"
+					},
+					axisY: {
+						title: "Number of nodes",
+						prefix: "",
+						suffix:  ""
+					},
+					data: [{
+						type: "column",
+						yValueFormatString: "#,### Units",
+						//indexLabel: "{y}",
+						//indexLabelPlacement: "inside",
+						//indexLabelFontWeight: "bolder",
+						//indexLabelFontColor: "white",
+						dataPoints: <?php echo json_encode($dataUtilizationNodeState_points, JSON_NUMERIC_CHECK); ?>
+					}]
+				});
+				chart2.render();
+
+				}
+				</script>
 						<!-- Main -->
 				<section id="main" class="container">
                     
@@ -127,6 +191,9 @@ else
 						<h2>Resources</h2> 
 					</header>
                     
+					<div id="node_state" style="height: 370px; width: 100%;"></div>
+					<div id="node_utilization_state" style="height: 370px; width: 100%;"></div>
+					
 
 					<section class="box">
 						<div class="col">           
@@ -198,6 +265,7 @@ else
 				<script src="assets/js/util.js"></script>
 				<script src="assets/js/main.js"></script>
 				<script src="assets/js/sweetalert.min.js"></script>
+				<script src="https://canvasjs.com/assets/script/canvasjs.min.js"></script>
 			
 		</body>
 	</html>

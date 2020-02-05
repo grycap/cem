@@ -94,6 +94,23 @@ function get_all_nodes_info ()
     return $node_info_array;
 }
 
+function get_resources_general_monitoring()
+{
+    include('config.php');
+    $result=array();
+    $monitoring_data = array();
+    $db = new IMDB();
+    $monitoring_data_aux = $db->get_items_from_table($db_general_monitoring_table);
+    $db->close();
+    $monitoring_data = $monitoring_data_aux[ count($monitoring_data_aux)-1 ][2];
+    $json_data = json_decode($monitoring_data, true);
+    array_push($result,  $json_data['current_resourceState']);
+    array_push($result,  $json_data["current_utilizationState"]);
+    //return $monitoring_data;
+    return $result;
+}
+
+
 
 function get_node_info ( $vmID ) 
 {

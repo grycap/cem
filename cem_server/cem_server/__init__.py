@@ -15,5 +15,5 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __all__ = ['config', 'cem', 'db', 'REST_Server', 'IM_api', 'Request', 'REST_api', 'CEM_agent_client', 'IptRest_api', 'Resource', 'User']
-__version__ = '0.0.1'
+__version__ = '1.0.0'
 __author__ = 'Sergio Lopez'
