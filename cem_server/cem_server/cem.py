@@ -826,9 +826,10 @@ class ClusterElasticityManager():
                 result= False
                 self.LOG.error ('Something wrong when ' +__by + ' was trying to remove the VMs: '+str( request.data['remove'] ))
                 im_nodes = self.__im_rest.get_infrastructure_state()
-                for vmID in request.data['remove']:
-                    if vmID not in im_nodes['state']['vm_states']:
-                        removed_vms.append(vmID)
+                if im_nodes:
+                    for vmID in request.data['remove']:
+                        if vmID not in im_nodes['state']['vm_states']:
+                            removed_vms.append(vmID)
             else:
                 self.LOG.info ('All VMs removed successfully by ' + __by)      
                 removed_vms = request.data['remove']
